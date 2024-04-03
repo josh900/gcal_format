@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Calendar Day View</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body,
+        html {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .calendar-container {
+            display: flex;
+            height: calc(100% - 20px);
+            width: calc(100% - 70px);
+            margin-top: 10px;
+            margin-left: 60px;
+            
+
+        }
+
+        .calendar-column {
+            flex: 1;
+            border: 1px solid #ccc;
+            padding: 10px;
+            position: relative;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            overflow: visible;
+                        border-radius:5px;
+
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .date {
+            text-align: center;
+            color: #474747;
+            margin-top:10px;
+            margin-left:10px;
+        }
+
+        .date .day {
+            font-size: 18px;
+            color: #474747;
+        }
+
+        .date .day-of-month {
+            font-size: 24px;
+            color: #474747;
+           
+        }
+
+        .calendar-name {
+            font-size: 20px;
+            color: #474747;
+            margin-right: 10px;
+        }
+
+        .hours {
+            position: relative;
+            flex: 1;
+            overflow: hidden;
+            margin-top: 20px;
+                        overflow: visible;
+
+        }
+
+        .hour-row {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 6.25%;
+            /* Adjust this value based on the number of hours displayed */
+            display: flex;
+            align-items: center;
+            
+        }
+
+        .hour-label {
+            position: relative;
+            left: 0px;
+            width: 60px;
+            text-align: right;
+            font-size: 12px;
+            color: #888;
+            margin-left:-83px;
+
+        }
+  
+
+        .hour-divider {
+            flex: 1;
+            height: 1px;
+            background-color: #eee;
+            margin-left:27px;
+        }
+
+        .event-card {
+            position: absolute;
+            width: 100%;
+            background-color: #C0E9E7;
+            border-radius: 4px;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
+        .event-name {
+            font-weight: bold;
+            color: #474747;
+        }
+
+        .event-time {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .current-time-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 1px;
+            z-index: 999;
+            background-color: #B57E72;
+        }
+     </style>
+</head>
+
+<body>
+    <div class="calendar-container">
+        <div class="calendar-column">
+            <div class="header">
+                <div class="date"> <span class="day"></span><br> <span class="day-of-month"></span> </div>
+                <div class="calendar-name"></div>
+            </div>
+            <div class="hours"></div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const calendarId = urlParams.get('id');
+            const apiKey = 'AIzaSyBNlYH01_9Hc5S1J9vuFmu2nUqBZJNAXxs';
+            const eventsUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${apiKey}`;
+
+            if (calendarId) {
+                $.ajax({
+                    url: eventsUrl,
+                    dataType: 'json',
+                    success: function (data) {
+                        $('.calendar-name').text(data.summary);
+                        const events = data.items;
+                        const today = moment().format('YYYY-MM-DD');
+                        const filteredEvents = events.filter(event => {
+                            const start = moment(event.start.dateTime || event.start.date);
+                            return start.format('YYYY-MM-DD') === today;
+                        });
+
+                        renderCalendar(filteredEvents);
+                    }
+                });
+            }
+
+            function renderCalendar(events) {
+                const today = moment();
+                $('.day').text(today.format('ddd'));
+                $('.day-of-month').text(today.format('D'));
+
+                const hourContainer = $('.hours');
+                const startHour = 6;
+                const endHour = 22;
+
+                for (let hour = startHour; hour <= endHour; hour++) {
+        const hourRow = $('<div>').addClass('hour-row');
+        hourRow.css('top', `${((hour - startHour + 0.5) / (endHour - startHour + 1)) * 100}%`);
+
+        const hourLabel = $('<div>').addClass('hour-label').text(`${hour % 12 || 12} ${hour < 12 ? 'AM' : 'PM'}`);
+        const hourDivider = $('<div>').addClass('hour-divider');
+
+        hourRow.append(hourLabel, hourDivider);
+        hourContainer.append(hourRow);
+    }
+
+               
+
+               events.forEach(event => {
+        const start = moment(event.start.dateTime || event.start.date);
+        const end = moment(event.end.dateTime || event.end.date);
+        if (start.hour() >= startHour && end.hour() <= endHour) {
+            const eventDuration = end.diff(start, 'minutes');
+            const eventTop = ((start.hour() - startHour + start.minute() / 60 + 0.65) / (endHour - startHour + 0)) * 100;
+            const eventHeight = eventDuration / ((endHour - startHour + 1) * 60) * 100;
+
+            const eventCard = $('<div>').addClass('event-card');
+            eventCard.css('top', `${eventTop}%`);
+            eventCard.css('height', `${eventHeight}%`);
+            eventCard.append($('<div>').addClass('event-name').text(event.summary));
+            eventCard.append($('<div>').addClass('event-time').text(`${start.format('h:mm A')} - ${end.format('h:mm A')}`));
+            hourContainer.append(eventCard);
+        }
+    });
+
+    const currentMinutes = today.hour() * 60 + today.minute();
+    const currentTimeTop = ((currentMinutes - startHour * 60 + 30) / ((endHour - startHour - 0) * 60)) * 100;
+    const currentTimeLine = $('<div>').addClass('current-time-line');
+    currentTimeLine.css('top', `${currentTimeTop}%`);
+    hourContainer.append(currentTimeLine);
+            }
+        });
+    </script>
+</body>
+
+</html>
+
+
+
+
+
